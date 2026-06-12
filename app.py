@@ -250,7 +250,15 @@ def _wordcloud(text: str):
 # Sidebar
 # ---------------------------------------------------------------------------
 
-def _sidebar() -> tuple[bool, bool, str | None]:
+def _load_api_key() -> str | None:
+    """Read Gemini API key from Streamlit secrets or environment — never shown to users."""
+    try:
+        return st.secrets['GEMINI_API_KEY']
+    except Exception:
+        return os.getenv('GEMINI_API_KEY') or None
+
+
+def _sidebar() -> tuple[bool, bool]:
     with st.sidebar:
         st.markdown('### Analysis Settings')
 
@@ -266,14 +274,6 @@ def _sidebar() -> tuple[bool, bool, str | None]:
         )
 
         st.divider()
-
-        api_key = st.text_input(
-            'Gemini API Key',
-            type='password',
-            value=os.getenv('GEMINI_API_KEY', ''),
-            help='Optional — enables Gemini-powered AI assistant and summaries',
-            placeholder='AIza...',
-        )
 
         st.divider()
 
@@ -294,7 +294,7 @@ def _sidebar() -> tuple[bool, bool, str | None]:
                     st.session_state['sample_content'] = f.read()
                 st.success('Sample chat loaded.')
 
-    return enable_emotion, enable_toxicity, api_key or None
+    return enable_emotion, enable_toxicity
 
 
 # ---------------------------------------------------------------------------
@@ -635,13 +635,6 @@ def _tab_ai_assistant(df: pd.DataFrame, api_key: str | None, content_hash: int):
 
     gen = AIInsightsGenerator(api_key=api_key)
 
-    if not api_key:
-        st.warning(
-            'Add your **Gemini API key** in the sidebar to enable the AI Assistant. '
-            'Get one free at [aistudio.google.com](https://aistudio.google.com). '
-            'The key is used only for this session and never stored.'
-        )
-
     # Per-file chat history
     hist_key = f'ai_chat_{content_hash}'
     if hist_key not in st.session_state:
@@ -817,7 +810,8 @@ def main():
         unsafe_allow_html=True,
     )
 
-    enable_emotion, enable_toxicity, api_key = _sidebar()
+    enable_emotion, enable_toxicity = _sidebar()
+    api_key = _load_api_key()
 
     uploaded = st.file_uploader(
         'Chat Export File',
