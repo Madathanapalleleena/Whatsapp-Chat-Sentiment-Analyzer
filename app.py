@@ -176,18 +176,24 @@ PLOTLY_LAYOUT = dict(
 # Cached resource loaders
 # ---------------------------------------------------------------------------
 
-@st.cache_resource(show_spinner='Loading emotion model (first run downloads ~250 MB)...')
+@st.cache_resource(show_spinner='Loading emotion model...')
 def _emotion_detector():
-    d = DLEmotionDetector()
-    _ = d.pipeline
-    return d
+    try:
+        d = DLEmotionDetector()
+        _ = d.pipeline
+        return d
+    except Exception:
+        return None
 
 
-@st.cache_resource(show_spinner='Loading toxicity model (first run downloads ~200 MB)...')
+@st.cache_resource(show_spinner='Loading toxicity model...')
 def _toxicity_analyzer():
-    a = ToxicityAnalyzer()
-    _ = a.model
-    return a
+    try:
+        a = ToxicityAnalyzer()
+        _ = a.model
+        return a
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -845,25 +851,31 @@ def main():
 
         if enable_emotion:
             detector = _emotion_detector()
-            prog = st.progress(0, text='Running emotion detection...')
-            work_df = detector.analyze_dataframe(
-                work_df,
-                progress_callback=lambda p: prog.progress(
-                    p, text=f'Emotion detection — {p * 100:.0f}%'
-                ),
-            )
-            prog.empty()
+            if detector:
+                prog = st.progress(0, text='Running emotion detection...')
+                work_df = detector.analyze_dataframe(
+                    work_df,
+                    progress_callback=lambda p: prog.progress(
+                        p, text=f'Emotion detection — {p * 100:.0f}%'
+                    ),
+                )
+                prog.empty()
+            else:
+                st.warning('Emotion Detection unavailable — torch/transformers not installed.')
 
         if enable_toxicity:
             analyzer = _toxicity_analyzer()
-            prog = st.progress(0, text='Running toxicity analysis...')
-            work_df = analyzer.analyze_dataframe(
-                work_df,
-                progress_callback=lambda p: prog.progress(
-                    p, text=f'Toxicity analysis — {p * 100:.0f}%'
-                ),
-            )
-            prog.empty()
+            if analyzer:
+                prog = st.progress(0, text='Running toxicity analysis...')
+                work_df = analyzer.analyze_dataframe(
+                    work_df,
+                    progress_callback=lambda p: prog.progress(
+                        p, text=f'Toxicity analysis — {p * 100:.0f}%'
+                    ),
+                )
+                prog.empty()
+            else:
+                st.warning('Toxicity Analysis unavailable — torch/detoxify not installed.')
 
         st.session_state[state_key] = work_df
 
