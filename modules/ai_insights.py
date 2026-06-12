@@ -10,7 +10,7 @@ import pandas as pd
 
 
 class AIInsightsGenerator:
-    MODEL = 'gemini-1.5-flash'
+    MODEL = 'gemini-2.0-flash'
 
     def __init__(self, api_key: str | None = None):
         self._model = None
