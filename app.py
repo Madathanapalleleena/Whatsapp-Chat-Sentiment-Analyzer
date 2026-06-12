@@ -264,8 +264,8 @@ def _sidebar() -> tuple[bool, bool]:
 
         enable_emotion = st.toggle(
             'Emotion Detection (BERT)',
-            value=True,
-            help='DistilBERT model — downloads ~250 MB on first use',
+            value=False,
+            help='DistilBERT model — downloads ~250 MB on first use. Disable on low-memory environments.',
         )
         enable_toxicity = st.toggle(
             'Toxicity Analysis',
