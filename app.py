@@ -268,11 +268,11 @@ def _sidebar() -> tuple[bool, bool, str | None]:
         st.divider()
 
         api_key = st.text_input(
-            'Anthropic API Key',
+            'Gemini API Key',
             type='password',
-            value=os.getenv('ANTHROPIC_API_KEY', ''),
-            help='Optional — enables Claude-powered chat summaries',
-            placeholder='sk-ant-...',
+            value=os.getenv('GEMINI_API_KEY', ''),
+            help='Optional — enables Gemini-powered AI assistant and summaries',
+            placeholder='AIza...',
         )
 
         st.divider()
@@ -611,17 +611,114 @@ def _tab_ai_insights(df: pd.DataFrame, analytics: ConversationAnalytics, api_key
     st.divider()
     st.markdown('#### Chat Summary')
     if st.button('Generate Summary', type='primary'):
-        with st.spinner('Generating insights...'):
-            summary = gen.generate_summary(df)
-        st.markdown(summary)
+        if api_key:
+            st.write_stream(gen.stream_summary(df))
+        else:
+            with st.spinner('Generating summary...'):
+                st.markdown(gen.generate_summary(df))
     else:
         note = (
-            'Click **Generate Summary** to get a Claude-powered analysis.'
+            'Click **Generate Summary** to get a Gemini-powered analysis with real-time streaming.'
             if api_key else
             'Click **Generate Summary** for a statistical summary, '
-            'or add your Anthropic API key in the sidebar for an AI-powered version.'
+            'or add your Gemini API key in the sidebar for a live AI-powered version.'
         )
         st.info(note)
+
+
+def _tab_ai_assistant(df: pd.DataFrame, api_key: str | None, content_hash: int):
+    st.subheader('AI Assistant')
+    st.caption(
+        'Conversational AI powered by Claude — ask anything about your chat. '
+        'Supports voice input and real-time streaming responses.'
+    )
+
+    gen = AIInsightsGenerator(api_key=api_key)
+
+    if not api_key:
+        st.warning(
+            'Add your **Gemini API key** in the sidebar to enable the AI Assistant. '
+            'Get one free at [aistudio.google.com](https://aistudio.google.com). '
+            'The key is used only for this session and never stored.'
+        )
+
+    # Per-file chat history
+    hist_key = f'ai_chat_{content_hash}'
+    if hist_key not in st.session_state:
+        st.session_state[hist_key] = []
+    messages: list[dict] = st.session_state[hist_key]
+
+    # Display existing conversation
+    for msg in messages:
+        with st.chat_message(msg['role']):
+            st.markdown(msg['content'])
+
+    # ── Voice input ────────────────────────────────────────────────────────────
+    with st.expander('Voice Input', expanded=False):
+        st.caption('Record your question and click **Transcribe & Ask**.')
+        audio_input = st.audio_input('Record a question')
+
+        if audio_input is not None:
+            col1, col2 = st.columns([1, 3])
+            if col1.button('Transcribe & Ask', type='primary'):
+                try:
+                    from modules.voice import transcribe_audio
+                    with st.spinner('Transcribing...'):
+                        question = transcribe_audio(audio_input.read())
+                    st.session_state[f'{hist_key}_voice_q'] = question
+                    st.success(f'Transcribed: "{question}"')
+                    st.rerun()
+                except Exception as e:
+                    st.error(f'Transcription failed: {e}')
+
+    # Pick up a pending voice question from the previous rerun
+    voice_q_key = f'{hist_key}_voice_q'
+    pending_voice = st.session_state.pop(voice_q_key, None)
+
+    # ── Text input ─────────────────────────────────────────────────────────────
+    text_prompt = st.chat_input('Ask something about your chat…')
+
+    question = pending_voice or text_prompt
+    if not question:
+        if not messages:
+            st.markdown(
+                "<div style='color:#6b7280;font-size:0.85rem;padding:8px 0'>"
+                "Try asking: <i>\"Who messages the most?\", \"What's the overall mood?\", "
+                "\"Summarize the last week of messages\"</i>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        return
+
+    # Display user turn
+    with st.chat_message('user'):
+        st.markdown(question)
+    messages.append({'role': 'user', 'content': question})
+
+    # Build history for context (last 8 turns, excluding the one just added)
+    history_for_api = [
+        {'role': m['role'], 'content': m['content']}
+        for m in messages[:-1][-8:]
+    ]
+
+    # Stream assistant response
+    with st.chat_message('assistant'):
+        response: str = st.write_stream(gen.stream_answer(df, question, history_for_api))
+
+    messages.append({'role': 'assistant', 'content': response})
+
+    # Voice output
+    try:
+        from modules.voice import text_to_speech_bytes
+        audio_bytes = text_to_speech_bytes(response)
+        st.audio(audio_bytes, format='audio/mp3')
+    except Exception:
+        pass  # Voice output is optional; silently skip if gTTS unavailable
+
+    # Clear history button
+    if messages and st.button('Clear conversation', key=f'clear_{hist_key}'):
+        st.session_state[hist_key] = []
+        st.rerun()
 
 
 def _tab_raw(df: pd.DataFrame):
@@ -698,10 +795,10 @@ def _landing():
     with c3:
         st.markdown(
             f"<div style='{card_style}'>"
-            f"<div style='{heading_style}'>AI Insights</div>"
+            f"<div style='{heading_style}'>AI Assistant</div>"
             f"<div style='{body_style}'>"
-            "Participant profiles<br>Relationship dynamics<br>"
-            "Claude-powered summaries<br>Emotional pattern reports"
+            "Voice input &amp; TTS output<br>Real-time streaming responses<br>"
+            "Multi-turn conversation<br>Claude-powered summaries"
             "</div></div>",
             unsafe_allow_html=True,
         )
@@ -794,8 +891,10 @@ def main():
 
     tabs = st.tabs([
         'Overview', 'Sentiment', 'Emotions',
-        'Toxicity', 'Topics', 'AI Insights', 'Raw Data',
+        'Toxicity', 'Topics', 'AI Insights', 'AI Assistant', 'Raw Data',
     ])
+
+    content_hash = hash(content)
 
     with tabs[0]:
         _tab_overview(df, stats, analytics)
@@ -810,6 +909,8 @@ def main():
     with tabs[5]:
         _tab_ai_insights(df, analytics, api_key)
     with tabs[6]:
+        _tab_ai_assistant(df, api_key, content_hash)
+    with tabs[7]:
         _tab_raw(df)
 
 
