@@ -14,10 +14,10 @@ class TopicExtractor:
     def __init__(self, n_topics: int = 5):
         self.n_topics = n_topics
         self._vectorizer = CountVectorizer(
-            max_df=0.90, min_df=2, max_features=1000, stop_words='english'
+            max_df=0.90, min_df=2, max_features=500, stop_words='english'
         )
         self._lda = LatentDirichletAllocation(
-            n_components=n_topics, random_state=42, max_iter=15, n_jobs=-1
+            n_components=n_topics, random_state=42, max_iter=8, n_jobs=-1
         )
         self.is_fitted = False
 
@@ -65,6 +65,7 @@ class TopicExtractor:
     def analyze_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
         texts = df['processed_message'].fillna('').tolist()
-        self.fit(texts)
+        # Cap at 3000 messages for speed on large chats
+        self.fit(texts[:3000])
         df['topic'] = df['processed_message'].apply(self.predict_topic)
         return df
