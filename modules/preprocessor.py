@@ -18,17 +18,41 @@ def _download_nltk():
 _download_nltk()
 
 _URL_RE = re.compile(r'https?://\S+|www\.\S+', re.IGNORECASE)
+_HTML_TAG_RE = re.compile(r'<[^>]+>')
 _PUNCT_RE = re.compile(r'[^\w\s]')
 _DIGITS_RE = re.compile(r'\d+')
 _SPACES_RE = re.compile(r'\s+')
+
+# Words to exclude from word frequency / word cloud
+_EXTRA_STOPWORDS = {
+    # WhatsApp system artifacts
+    'media', 'omitted', 'deleted', 'null', 'edited',
+    'http', 'https', 'www', 'com', 'org', 'net',
+    # HTML / CSS terms that appear in shared code snippets
+    'div', 'span', 'class', 'classname', 'style', 'src', 'href',
+    'img', 'alt', 'type', 'value', 'input', 'button', 'form',
+    'html', 'body', 'head', 'script', 'link', 'li', 'ul', 'ol',
+    'br', 'td', 'tr', 'th', 'table', 'section', 'nav', 'footer',
+    'header', 'main', 'article', 'aside', 'ref', 'key', 'props',
+    # Romanized Telugu filler / function words (Tenglish)
+    'em', 'na', 'nee', 'aa', 'ila', 'ani', 'ante', 'undi', 'chey',
+    'okka', 'mee', 'oka', 'enti', 'ela', 'kada', 'ga', 'ki', 'lo',
+    'tho', 'ni', 'naku', 'nenu', 'meeru', 'memu', 'ra', 'di',
+    'le', 'ledhu', 'ledu', 'ayindi', 'avutundi', 'chestanu', 'chestu',
+    'vachi', 'poyindi', 'gurinchi', 'leka', 'kuda', 'appudu',
+    'inka', 'chala', 'anni', 'emi', 'eppudu', 'ekkada', 'evaru',
+    'nakku', 'maku', 'tanu', 'vadu', 'adi', 'ide', 'ite', 'aina',
+    'kaadu', 'kadu', 'kani', 'pani', 'mari', 'atu', 'itu', 'alaa',
+    'ilaa', 'valla', 'vallu', 'vaadu', 'aame', 'meeru', 'meerు',
+}
 
 
 class TextPreprocessor:
     def __init__(self):
         try:
-            self._stop_words = set(stopwords.words('english'))
+            self._stop_words = set(stopwords.words('english')) | _EXTRA_STOPWORDS
         except Exception:
-            self._stop_words = set()
+            self._stop_words = set(_EXTRA_STOPWORDS)
         self._lemmatizer = WordNetLemmatizer()
 
     # --- public helpers ---
@@ -44,6 +68,7 @@ class TextPreprocessor:
 
     def clean_text(self, text: str) -> str:
         text = self.remove_urls(text)
+        text = _HTML_TAG_RE.sub(' ', text)
         text = self.remove_emojis(text)
         text = _PUNCT_RE.sub(' ', text)
         text = _DIGITS_RE.sub('', text)

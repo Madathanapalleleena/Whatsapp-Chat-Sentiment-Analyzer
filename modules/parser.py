@@ -34,6 +34,11 @@ _SYSTEM_KEYWORDS = [
     'contact card omitted',
     'this message was deleted',
     'you deleted this message',
+    'missed voice call',
+    'missed video call',
+    'your security code with',
+    'changed the subject to',
+    'changed this group',
 ]
 
 _DATETIME_FORMATS = [

@@ -281,14 +281,12 @@ def _sidebar() -> tuple[bool, bool]:
 
         st.divider()
 
-        st.divider()
-
-        st.markdown('### Export Instructions')
+        st.markdown('### How to Export')
         st.markdown(
             '1. Open a WhatsApp conversation\n'
-            '2. Tap the menu and select **Export chat**\n'
+            '2. Tap ⋮ menu → **Export chat**\n'
             '3. Choose **Without Media**\n'
-            '4. Save and upload the `.txt` file above'
+            '4. Upload the `.txt` file'
         )
 
         st.divider()
@@ -387,10 +385,6 @@ def _tab_overview(df: pd.DataFrame, stats: dict, analytics: ConversationAnalytic
 
 def _tab_sentiment(df: pd.DataFrame, analytics: ConversationAnalytics):
     st.subheader('Sentiment Analysis')
-    st.caption(
-        'Pipeline: TF-IDF (unigrams + bigrams) — Logistic Regression, '
-        'bootstrapped with VADER labels from the chat corpus.'
-    )
 
     col1, col2 = st.columns(2)
 
@@ -451,11 +445,6 @@ def _tab_emotions(df: pd.DataFrame):
         st.info('Enable Emotion Detection in the sidebar, then re-upload the file.')
         return
 
-    st.caption(
-        'Model: bhadresh-savani/distilbert-base-uncased-emotion '
-        '(DistilBERT fine-tuned on 6 classes: joy, sadness, anger, fear, love, surprise)'
-    )
-
     col1, col2 = st.columns(2)
 
     with col1:
@@ -501,8 +490,6 @@ def _tab_toxicity(df: pd.DataFrame):
         st.info('Enable Toxicity Analysis in the sidebar, then re-upload the file.')
         return
 
-    st.caption('Model: Detoxify — Jigsaw multi-label toxicity classifier')
-
     toxic = df['is_toxic'].sum()
     c1, c2, c3 = st.columns(3)
     c1.metric('Toxic Messages', int(toxic))
@@ -539,7 +526,6 @@ def _tab_toxicity(df: pd.DataFrame):
 
 def _tab_topics(df: pd.DataFrame, topics: dict, topic_labels: dict):
     st.subheader('Topic Extraction')
-    st.caption('Model: Latent Dirichlet Allocation (LDA) with CountVectorizer features')
 
     if not topics:
         st.warning('Insufficient vocabulary for topic modeling (minimum 15 messages required).')
@@ -634,10 +620,6 @@ def _tab_ai_insights(df: pd.DataFrame, analytics: ConversationAnalytics, api_key
 
 def _tab_ai_assistant(df: pd.DataFrame, api_key: str | None, content_hash: int):
     st.subheader('AI Assistant')
-    st.caption(
-        'Conversational AI powered by Claude — ask anything about your chat. '
-        'Supports voice input and real-time streaming responses.'
-    )
 
     gen = AIInsightsGenerator(api_key=api_key)
 
@@ -758,7 +740,6 @@ def _tab_raw(df: pd.DataFrame):
 # ---------------------------------------------------------------------------
 
 def _landing():
-    st.markdown('---')
     c1, c2, c3 = st.columns(3)
 
     card_style = (
@@ -797,7 +778,7 @@ def _landing():
             f"<div style='{heading_style}'>AI Assistant</div>"
             f"<div style='{body_style}'>"
             "Voice input &amp; TTS output<br>Real-time streaming responses<br>"
-            "Multi-turn conversation<br>Claude-powered summaries"
+            "Multi-turn conversation<br>Gemini-powered summaries"
             "</div></div>",
             unsafe_allow_html=True,
         )
