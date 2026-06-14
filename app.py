@@ -613,8 +613,27 @@ def _tab_ai_insights(df: pd.DataFrame, analytics: ConversationAnalytics, api_key
         st.dataframe(rt_df, use_container_width=True, hide_index=True)
 
     st.divider()
+    st.markdown('#### Relationship Analysis')
+    st.markdown(
+        '<p style="color:#6b7280;font-size:0.85rem;margin-top:-6px">'
+        'What kind of relationship do these people have? How close are they?'
+        '</p>',
+        unsafe_allow_html=True,
+    )
+    if st.button('Analyse Relationship', type='primary', key='btn_relationship'):
+        with st.spinner('Analysing relationship...'):
+            result = st.write_stream(gen.stream_relationship_analysis(df))
+    else:
+        st.info(
+            'Click **Analyse Relationship** for an AI-powered read on the bond between participants.'
+            if api_key else
+            'Click **Analyse Relationship** for a statistical relationship snapshot, '
+            'or add your Gemini API key in the sidebar for a deep AI-powered analysis.'
+        )
+
+    st.divider()
     st.markdown('#### Chat Summary')
-    if st.button('Generate Summary', type='primary'):
+    if st.button('Generate Summary', type='primary', key='btn_summary'):
         if api_key:
             st.write_stream(gen.stream_summary(df))
         else:

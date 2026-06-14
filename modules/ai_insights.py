@@ -147,7 +147,129 @@ Provide a concise response with these sections:
             }
         return result
 
+    def _build_relationship_prompt(self, df: pd.DataFrame) -> str:
+        participants = df['sender'].unique().tolist()
+        date_min = df['datetime'].min().date()
+        date_max = df['datetime'].max().date()
+        span_days = max((pd.Timestamp(date_max) - pd.Timestamp(date_min)).days, 1)
+
+        msg_counts = df['sender'].value_counts().to_dict()
+
+        avg_words = {}
+        if 'word_count' in df.columns:
+            for p in participants:
+                avg_words[p] = round(df[df['sender'] == p]['word_count'].mean(), 1)
+
+        sent_by_person = {}
+        if 'sentiment' in df.columns:
+            for p in participants:
+                g = df[df['sender'] == p]
+                sent_by_person[p] = g['sentiment'].mode()[0] if len(g) > 0 else 'N/A'
+
+        peak_hours = {}
+        for p in participants:
+            g = df[df['sender'] == p]
+            if len(g) > 0:
+                peak_hours[p] = int(g['datetime'].dt.hour.mode()[0])
+
+        tmp = df.sort_values('datetime').copy()
+        tmp['resp_min'] = tmp['datetime'].diff().dt.total_seconds() / 60
+        tmp = tmp[(tmp['resp_min'] > 0) & (tmp['resp_min'] < 120)]
+        avg_response = tmp.groupby('sender')['resp_min'].mean().round(1).to_dict()
+
+        sample = df.sample(min(80, len(df)), random_state=42).sort_values('datetime')
+        chat_lines = [f"{r['sender']}: {r['message']}" for _, r in sample.iterrows()]
+
+        return f"""Analyze the relationship between the participants in this WhatsApp conversation.
+
+STATS:
+- Participants: {', '.join(participants)}
+- Chat span: {span_days} days ({date_min} → {date_max})
+- Messages sent: {msg_counts}
+- Avg words per message: {avg_words}
+- Dominant sentiment per person: {sent_by_person}
+- Peak activity hour: {peak_hours}
+- Avg response time (min): {avg_response}
+
+CONVERSATION SAMPLE:
+{chr(10).join(chat_lines)}
+
+Give a warm, human, and insightful relationship analysis. Cover these sections:
+
+1. **Relationship Type** — What kind of relationship is this? (close friends, romantic, family, colleagues, acquaintances…). Give your reasoning from the chat signals.
+2. **How Close Are They?** — Describe the bond and intimacy level.
+3. **Communication Style** — How do they talk to each other? Playful, supportive, formal, teasing?
+4. **Who Reaches Out More?** — Who initiates, who replies faster, who writes more?
+5. **Emotional Dynamic** — What emotions run through the relationship?
+6. **One Surprising Observation** — Something unique or unexpected about how they interact.
+
+Be warm and conversational — like a friend explaining it, not a report."""
+
+    def _fallback_relationship_analysis(self, df: pd.DataFrame) -> str:
+        participants = df['sender'].unique().tolist()
+        span = max((df['datetime'].max() - df['datetime'].min()).days, 1)
+        counts = df['sender'].value_counts()
+        total = len(df)
+
+        lines = ['**Relationship Snapshot** *(add a Gemini API key for a full AI-powered analysis)*', '']
+
+        if span > 180:
+            lines.append(f'- **Long-running connection** — {span} days of chat history suggests a sustained relationship.')
+        elif span > 30:
+            lines.append(f'- **Established contact** — {span} days of conversation.')
+        else:
+            lines.append(f'- **Recent connection** — only {span} days of history so far.')
+
+        if len(participants) == 2:
+            a, b = counts.index[0], counts.index[1]
+            pct = round(counts.iloc[0] / total * 100)
+            if pct > 65:
+                lines.append(f'- **{a}** drives the conversation ({pct}% of messages) — they tend to initiate more.')
+            else:
+                lines.append(f'- Well-balanced exchange — both participants contribute roughly equally.')
+
+        tmp = df.sort_values('datetime').copy()
+        tmp['resp_min'] = tmp['datetime'].diff().dt.total_seconds() / 60
+        tmp = tmp[(tmp['resp_min'] > 0) & (tmp['resp_min'] < 30)]
+        if not tmp.empty:
+            avg_rt = tmp['resp_min'].mean()
+            if avg_rt < 5:
+                lines.append('- **Very fast replies** — they stay engaged and rarely leave each other waiting.')
+            elif avg_rt < 15:
+                lines.append('- **Reasonably quick replies** — a comfortable back-and-forth rhythm.')
+            else:
+                lines.append('- **Relaxed pace** — they take their time replying, suggesting a low-pressure dynamic.')
+
+        night_msgs = df[df['datetime'].dt.hour.between(22, 23) | df['datetime'].dt.hour.between(0, 3)]
+        if len(night_msgs) / total > 0.15:
+            lines.append('- **Late-night chats** — a notable portion of messages happen after 10 PM, hinting at a close, personal bond.')
+
+        if 'sentiment' in df.columns:
+            pos_pct = round((df['sentiment'] == 'Positive').sum() / total * 100)
+            if pos_pct > 60:
+                lines.append(f'- **Positive atmosphere** — {pos_pct}% of messages are positive, reflecting a warm and supportive relationship.')
+            elif pos_pct < 30:
+                lines.append(f'- **Tense undertones** — relatively few positive messages; there may be friction in this relationship.')
+
+        return '\n'.join(lines)
+
     # ── public: streaming ──────────────────────────────────────────────────────
+
+    def stream_relationship_analysis(self, df: pd.DataFrame) -> Generator[str, None, None]:
+        if not self._model:
+            yield self._fallback_relationship_analysis(df)
+            return
+        try:
+            response = self._model.generate_content(
+                self._build_relationship_prompt(df),
+                stream=True,
+            )
+            for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+        except Exception as e:
+            yield f'*Streaming error: {e}*\n\n'
+            yield self._fallback_relationship_analysis(df)
 
     def stream_summary(self, df: pd.DataFrame) -> Generator[str, None, None]:
         """Stream the chat summary token-by-token using the Gemini streaming API."""
