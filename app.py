@@ -149,8 +149,20 @@ st.markdown(
 
     /* ── File uploader ── */
     [data-testid="stFileUploadDropzone"] {
-        border-radius: 8px;
-        border: 1.5px dashed #d1d5db;
+        border-radius: 12px;
+        border: 2px dashed #d1d5db;
+        background: #fafafa;
+        transition: border-color 0.2s;
+    }
+    [data-testid="stFileUploadDropzone"]:hover {
+        border-color: #6b7280;
+    }
+    /* Hide the "200MB per file • TXT" hint */
+    [data-testid="stFileUploadDropzone"] small,
+    [data-testid="stFileUploaderDropzoneInstructions"] small,
+    [data-testid="stFileUploadDropzone"] span[class*="uploadInstructions"] small,
+    section[data-testid="stFileUploadDropzone"] > div > small {
+        display: none !important;
     }
     </style>
     """,
@@ -740,48 +752,66 @@ def _tab_raw(df: pd.DataFrame):
 # ---------------------------------------------------------------------------
 
 def _landing():
-    c1, c2, c3 = st.columns(3)
-
-    card_style = (
-        "background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;"
-        "padding:24px 28px;height:200px"
+    st.markdown(
+        """
+        <div style="text-align:center;padding:2.5rem 1rem 1.5rem">
+            <div style="font-size:3rem;margin-bottom:0.75rem">💬</div>
+            <h2 style="font-size:1.6rem;font-weight:700;color:#111827;margin-bottom:0.5rem">
+                See what your chats are really saying
+            </h2>
+            <p style="font-size:1rem;color:#6b7280;max-width:480px;margin:0 auto 2rem">
+                Drop in any WhatsApp export and get instant insights —
+                sentiment, emotions, topics, and an AI that answers your questions.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    heading_style = (
-        "font-size:0.75rem;font-weight:700;text-transform:uppercase;"
-        "letter-spacing:0.07em;color:#6b7280;margin-bottom:10px"
-    )
-    body_style = "font-size:0.85rem;color:#374151;line-height:1.9"
 
-    with c1:
-        st.markdown(
-            f"<div style='{card_style}'>"
-            f"<div style='{heading_style}'>Analytics</div>"
-            f"<div style='{body_style}'>"
-            "Activity heatmaps<br>Word clouds and frequency<br>"
-            "Response time analysis<br>Emoji usage patterns"
-            "</div></div>",
-            unsafe_allow_html=True,
-        )
-    with c2:
-        st.markdown(
-            f"<div style='{card_style}'>"
-            f"<div style='{heading_style}'>ML / DL Models</div>"
-            f"<div style='{body_style}'>"
-            "TF-IDF + Logistic Regression<br>DistilBERT emotion detection<br>"
-            "LDA topic modeling<br>Detoxify toxicity scoring"
-            "</div></div>",
-            unsafe_allow_html=True,
-        )
-    with c3:
-        st.markdown(
-            f"<div style='{card_style}'>"
-            f"<div style='{heading_style}'>AI Assistant</div>"
-            f"<div style='{body_style}'>"
-            "Voice input &amp; TTS output<br>Real-time streaming responses<br>"
-            "Multi-turn conversation<br>Gemini-powered summaries"
-            "</div></div>",
-            unsafe_allow_html=True,
-        )
+    c1, c2, c3, c4 = st.columns(4)
+    features = [
+        ('😊', 'Sentiment', 'Know the overall mood — positive, neutral, or negative — across the whole chat.'),
+        ('🎭', 'Emotions', 'Detect joy, sadness, anger, fear, and more message by message.'),
+        ('💡', 'Topics', 'Automatically find what the conversation is really about.'),
+        ('🤖', 'AI Assistant', 'Ask anything about your chat and get instant answers.'),
+    ]
+    for col, (icon, title, desc) in zip([c1, c2, c3, c4], features):
+        with col:
+            st.markdown(
+                f"<div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;"
+                f"padding:20px 18px;text-align:center;height:180px'>"
+                f"<div style='font-size:1.8rem;margin-bottom:10px'>{icon}</div>"
+                f"<div style='font-weight:700;font-size:0.9rem;color:#111827;margin-bottom:6px'>{title}</div>"
+                f"<div style='font-size:0.8rem;color:#6b7280;line-height:1.5'>{desc}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+    st.markdown('<div style="height:2rem"></div>', unsafe_allow_html=True)
+
+    st.markdown(
+        "<p style='text-align:center;font-size:0.8rem;color:#9ca3af;margin-bottom:0.5rem'>"
+        "HOW IT WORKS</p>",
+        unsafe_allow_html=True,
+    )
+    s1, s2, s3 = st.columns(3)
+    steps = [
+        ('1', 'Open WhatsApp', 'Go to any chat → tap ⋮ → Export chat → Without Media'),
+        ('2', 'Upload the file', 'Drop the .txt file into the uploader above'),
+        ('3', 'Explore insights', 'Browse the tabs or ask the AI assistant anything'),
+    ]
+    for col, (num, title, desc) in zip([s1, s2, s3], steps):
+        with col:
+            st.markdown(
+                f"<div style='display:flex;gap:12px;align-items:flex-start;padding:12px 0'>"
+                f"<div style='background:#111827;color:#fff;border-radius:50%;width:28px;height:28px;"
+                f"display:flex;align-items:center;justify-content:center;font-size:0.75rem;"
+                f"font-weight:700;flex-shrink:0'>{num}</div>"
+                f"<div><div style='font-weight:600;font-size:0.88rem;color:#111827'>{title}</div>"
+                f"<div style='font-size:0.8rem;color:#6b7280;margin-top:2px'>{desc}</div></div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -789,11 +819,8 @@ def _landing():
 # ---------------------------------------------------------------------------
 
 def main():
-    st.title('WhatsApp Chat Analyzer')
     st.markdown(
-        '<p style="color:#6b7280;font-size:0.95rem;margin-top:-8px">'
-        'Upload a WhatsApp chat export to analyze sentiment, emotions, topics, and conversation patterns.'
-        '</p>',
+        "<h1 style='margin-bottom:0'>WhatsApp Chat Analyzer</h1>",
         unsafe_allow_html=True,
     )
 
@@ -801,9 +828,8 @@ def main():
     api_key = _load_api_key()
 
     uploaded = st.file_uploader(
-        'Chat Export File',
+        'Drop your WhatsApp export here (.txt)',
         type=['txt'],
-        label_visibility='collapsed',
     )
 
     content: str | None = None
